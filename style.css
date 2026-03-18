@@ -1,104 +1,136 @@
-:root {
-    --bg: #f0f4f8;
-    --primary: #8ECAE6;
-    --secondary: #219EBC;
-    --accent: #FFB703;
-    --white: rgba(255, 255, 255, 0.9);
-    --grad: linear-gradient(135deg, #A2D2FF 0%, #FFC8DD 100%);
+// 1. Firebase Setup
+const firebaseConfig = {
+    apiKey: "AIzaSyDiUc6y2M5FCu-tEnY1mgYGgVhu7H-PFnE",
+    authDomain: "mindu-9f4b0.firebaseapp.com",
+    projectId: "mindu-9f4b0",
+    storageBucket: "mindu-9f4b0.firebasestorage.app",
+    messagingSenderId: "237113799668",
+    appId: "1:237113799668:web:0842f44252a1650a3abfa1"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// 2. Data
+const moods = [
+    { name: "ตัวมารดา", emoji: "👑" }, { name: "ว้าวุ่น", emoji: "😵‍💫" },
+    { name: "ฉ่ำ", emoji: "✨" }, { name: "นอยด์", emoji: "😞" },
+    { name: "จึ้ง", emoji: "🔥" }, { name: "ขิต", emoji: "💀" },
+    { name: "น้ำตาไหล", emoji: "💧" }, { name: "จะเครซี่", emoji: "🤯" },
+    { name: "กี่โมง", emoji: "⏰" }
+];
+
+let selectedMood = null;
+let mainChart = null;
+
+// 3. Navigation
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if(id === 'student-screen') renderMoods();
+    if(id === 'staff-screen') refreshDashboard();
 }
 
-* { box-sizing: border-box; font-family: 'Prompt', sans-serif; }
-
-body {
-    margin: 0;
-    min-height: 100vh;
-    background: var(--grad);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 15px;
+function updateMajorBadge() {
+    const major = document.getElementById('student-major').value;
+    document.getElementById('display-major').innerText = major || "รอกดเลือกสาขา";
 }
 
-.screen { display: none; width: 100%; max-width: 500px; animation: fadeIn 0.5s ease; }
-.screen.active { display: block; }
-.wide-card { max-width: 800px !important; }
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-.glass-card {
-    background: var(--white);
-    backdrop-filter: blur(10px);
-    border-radius: 30px;
-    padding: 30px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+// 4. Student Logic
+function renderMoods() {
+    const container = document.getElementById('mood-options');
+    container.innerHTML = moods.map(m => `
+        <div class="mood-item" onclick="selectMood('${m.name}', this)">
+            <span>${m.emoji}</span>
+            <small>${m.name}</small>
+        </div>
+    `).join('');
 }
 
-/* UI Elements */
-.brand { text-align: center; margin-bottom: 40px; }
-.main-emoji { font-size: 80px; display: block; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1)); }
-
-.btn {
-    width: 100%;
-    padding: 16px;
-    border: none;
-    border-radius: 18px;
-    font-size: 18px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: 0.3s;
-    margin-bottom: 15px;
+function selectMood(name, el) {
+    selectedMood = name;
+    document.querySelectorAll('.mood-item').forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
 }
 
-.btn-student { background: var(--secondary); color: white; }
-.btn-primary { background: #BDE0FE; color: #444; }
-.btn-accent { background: var(--accent); color: white; }
-.btn-outline { background: transparent; border: 2px solid var(--secondary); color: var(--secondary); }
-.btn:hover { transform: scale(1.02); filter: brightness(1.1); }
+async function submitEntry() {
+    const major = document.getElementById('student-major').value;
+    const level = document.getElementById('mood-level').value;
+    const note = document.getElementById('student-note').value;
 
-/* Mood Grid */
-.mood-selector {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    if(!major || !selectedMood) return alert("กรุณาเลือกสาขาและอารมณ์ก่อนนะ 💧");
+
+    try {
+        await db.collection("entries").add({
+            major, mood: selectedMood, level: parseInt(level),
+            note, time: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("บันทึกใจสำเร็จแล้ว! พักผ่อนให้เยอะๆ นะ");
+        resetForm();
+        fetchHistory();
+    } catch (e) { alert("เกิดข้อผิดพลาด ลองใหม่อีกครั้ง"); }
 }
 
-.mood-item {
-    background: #f8f9fa;
-    border: 2px solid transparent;
-    border-radius: 20px;
-    padding: 15px 5px;
-    text-align: center;
-    cursor: pointer;
+function resetForm() {
+    document.getElementById('student-note').value = "";
+    selectedMood = null;
+    document.querySelectorAll('.mood-item').forEach(i => i.classList.remove('selected'));
 }
 
-.mood-item.selected {
-    background: #e3f2fd;
-    border-color: var(--secondary);
+async function fetchHistory() {
+    const snap = await db.collection("entries").orderBy("time", "desc").limit(3).get();
+    const container = document.getElementById('history-list');
+    container.innerHTML = snap.docs.map(doc => {
+        const d = doc.data();
+        return `<div class="history-card"><b>${d.mood} (ระดับ ${d.level})</b><br><small>${d.major}</small></div>`;
+    }).join('');
 }
 
-.mood-item span { font-size: 24px; display: block; }
-
-/* Level Selector */
-input[type=range] { width: 100%; margin: 15px 0; }
-.level-labels { display: flex; justify-content: space-between; font-size: 12px; color: #888; }
-
-textarea {
-    width: 100%;
-    height: 100px;
-    border-radius: 15px;
-    border: 1px solid #ddd;
-    padding: 15px;
-    margin: 15px 0;
-    resize: none;
+// 5. Staff Logic
+function handleLogin() {
+    if(document.getElementById('staff-password').value === "20043") showScreen('staff-screen');
+    else alert("รหัสผ่านไม่ถูกต้อง");
 }
 
-.history-card {
-    background: #fff;
-    padding: 12px;
-    border-radius: 15px;
-    margin-top: 10px;
-    border-left: 5px solid var(--primary);
-    font-size: 14px;
+async function refreshDashboard() {
+    const filter = document.getElementById('filter-major').value;
+    let query = db.collection("entries");
+    if(filter !== 'all') query = query.where("major", "==", filter);
+    
+    const snap = await query.get();
+    const data = snap.docs.map(d => d.data());
+    
+    updateStats(data);
+}
+
+function updateStats(data) {
+    if(data.length === 0) return;
+
+    const moodCounts = {};
+    let totalLevel = 0;
+    
+    data.forEach(d => {
+        moodCounts[d.mood] = (moodCounts[d.mood] || 0) + 1;
+        totalLevel += d.level;
+    });
+
+    const topMood = Object.keys(moodCounts).reduce((a, b) => moodCounts[a] > moodCounts[b] ? a : b);
+    document.getElementById('top-mood').innerText = topMood;
+    document.getElementById('avg-level').innerText = (totalLevel / data.length).toFixed(1);
+
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if(mainChart) mainChart.destroy();
+    
+    mainChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(moodCounts),
+            datasets: [{
+                data: Object.values(moodCounts),
+                backgroundColor: ['#FFADAD', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF', '#FFC6FF']
+            }]
+        },
+        options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
 }
 
 /* Dashboard */
