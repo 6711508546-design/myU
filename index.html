@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💧</text></svg>">
+    <title>MindU - ระบบติดตามสุขภาพใจ</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="role-screen" class="container active-screen">
+        <span class="logo">💙</span>
+        <h1>MindU</h1>
+        <p style="text-align: center; margin-bottom: 30px;">ยินดีต้อนรับสู่พื้นที่ปลอดภัยของคุณ</p>
+        <button class="btn-primary" onclick="switchScreen('student-screen')">👩‍🎓 ฉันคือนักศึกษา</button>
+        <button class="btn-accent" onclick="switchScreen('login-screen')">👨‍🏫 ฉันคืออาจารย์ / บุคลากร</button>
+    </div>
+
+    <div id="login-screen" class="container">
+        <span class="logo">🔐</span>
+        <h2>เข้าสู่ระบบอาจารย์</h2>
+        <input type="password" id="staff-password" placeholder="กรุณาใส่รหัสผ่าน (20043)">
+        <p id="login-error" style="color: red; display: none; text-align: center; margin-bottom: 10px;">รหัสผ่านไม่ถูกต้อง!</p>
+        <button class="btn-accent" onclick="checkPassword()">เข้าสู่ระบบ</button>
+        <button class="btn-back" onclick="switchScreen('role-screen')">กลับ</button>
+    </div>
+
+    <div id="student-screen" class="container">
+        <h2>วันนี้ใจเป็นยังไงบ้าง? 🌿</h2>
+        
+        <select id="student-major">
+            <option value="" disabled selected>-- เลือกสาขาวิชาของคุณ --</option>
+            <option value="คอมพิวเตอร์ศึกษา">คอมพิวเตอร์ศึกษา</option>
+            <option value="วิทยาการคอมพิวเตอร์">วิทยาการคอมพิวเตอร์</option>
+            <option value="เทคโนโลยีสารสนเทศ">เทคโนโลยีสารสนเทศ</option>
+            <option value="วิศวกรรมซอฟต์แวร์">วิศวกรรมซอฟต์แวร์</option>
+        </select>
+
+        <div class="mood-grid" id="mood-container">
+            </div>
+
+        <textarea id="student-text" rows="4" placeholder="ระบายความรู้สึกของคุณที่นี่ (อาจารย์จะไม่เห็นข้อความนี้)..."></textarea>
+        
+        <button class="btn-primary" onclick="saveMood()">บันทึกใจไว้ 💌</button>
+        <button class="btn-back" onclick="switchScreen('role-screen')">กลับไปหน้าแรก</button>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
+        
+        <h3>📝 ประวัติการบันทึกของคุณ</h3>
+        <div id="student-history-list">
+            </div>
+    </div>
+
+    <div id="staff-screen" class="container" style="max-width: 800px;">
+        <h2>📊 ภาพรวมอารมณ์นักศึกษา</h2>
+        
+        <select id="filter-major" onchange="loadStaffDashboard()">
+            <option value="all">ดูทุกสาขาวิชา</option>
+            <option value="คอมพิวเตอร์ศึกษา">คอมพิวเตอร์ศึกษา</option>
+            <option value="วิทยาการคอมพิวเตอร์">วิทยาการคอมพิวเตอร์</option>
+            <option value="เทคโนโลยีสารสนเทศ">เทคโนโลยีสารสนเทศ</option>
+            <option value="วิศวกรรมซอฟต์แวร์">วิศวกรรมซอฟต์แวร์</option>
+        </select>
+
+        <div class="chart-container">
+            <canvas id="moodChart"></canvas>
+        </div>
+
+        <div class="summary-box" id="staff-summary">
+            กำลังโหลดข้อมูลสรุป...
+        </div>
+
+        <button class="btn-back" onclick="switchScreen('role-screen')" style="margin-top: 20px;">ออกจากระบบ</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
