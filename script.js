@@ -1,98 +1,95 @@
-/* ================= Modern UI & Responsive Design ================= */
-:root {
-    --text-main: #1d3557; 
-    --text-light: #457b9d;
-    --white: #ffffff; 
-    --glass-bg: rgba(255, 255, 255, 0.85);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-}
+// ================= JS: Logic & Interactive Charts =================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } 
+from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Kanit', sans-serif; }
+const firebaseConfig = {
+    apiKey: "AIzaSyDiUc6y2M5FCu-tEnY1mgYGgVhu7H-PFnE", 
+    authDomain: "mindu-9f4b0.firebaseapp.com",
+    projectId: "mindu-9f4b0", 
+    storageBucket: "mindu-9f4b0.firebasestorage.app",
+    messagingSenderId: "237113799668", 
+    appId: "1:237113799668:web:0842f44252a1650a3abfa1"
+};
 
-body {
-    background: linear-gradient(-45deg, #ffc8dd, #a2d2ff, #cdb4db, #fdffb6);
-    background-size: 300% 300%; 
-    animation: gradientBG 15s ease infinite;
-    color: var(--text-main); 
-    min-height: 100vh; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    padding: 20px;
-}
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-@keyframes gradientBG { 
-    0% { background-position: 0% 50%; } 
-    50% { background-position: 100% 50%; } 
-    100% { background-position: 0% 50%; } 
-}
+let appData = [];
+let currentSelectedMood = "";
+let studentChartInstance = null; 
 
-/* Glassmorphism Container */
-.container {
-    width: 100%; max-width: 850px; 
-    background: var(--glass-bg); 
-    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    border-radius: 30px; 
-    box-shadow: var(--shadow); 
-    padding: 40px; 
-    margin-top: 15px;
-    border: 1px solid var(--glass-border);
-    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
+const moodEmojiMap = { 'ตัวมารดา': '👑', 'ว้าวุ่น': '😵‍💫', 'ฉ่ำ': '✨', 'นอยด์': '😞', 'จึ้ง': '🔥', 'ขิต': '💀', 'จะเครซี่': '🤯', 'กี่โมง': '⏰' };
+const moodScores = { 'ตัวมารดา':5, 'ฉ่ำ':5, 'จึ้ง':4, 'ว้าวุ่น':3, 'กี่โมง':3, 'จะเครซี่':2, 'นอยด์':2, 'ขิต':1 };
 
-@keyframes fadeUp { 
-    0% { transform: translateY(20px); opacity: 0; } 
-    100% { transform: translateY(0); opacity: 1; } 
-}
+// ระบบบันทึกข้อมูลและจุดพลุฉลอง
+window.saveMood = async () => {
+    if (!currentSelectedMood) { alert("อย่าลืมเลือกอารมณ์ก่อนนะ 😊"); return; }
 
-/* Typography */
-h1 { font-size: 32px; font-weight: 700; color: #1d3557; text-align: center; margin-bottom: 10px; }
-h2 { font-size: 24px; font-weight: 600; text-align: center; margin-bottom: 25px; }
+    const record = {
+        mood: currentSelectedMood,
+        majorValue: document.getElementById('student-major').value,
+        note: document.getElementById('student-note').value,
+        timestamp: Date.now()
+    };
 
-/* Buttons */
-.btn { 
-    padding: 16px 30px; border: none; border-radius: 20px; font-size: 18px; 
-    cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); font-weight: 600; 
-}
-.btn-primary { 
-    background: linear-gradient(135deg, #a2d2ff, #ffc8dd); 
-    color: #1d3557; width: 100%; 
-    box-shadow: 0 4px 15px rgba(162, 210, 255, 0.5); 
-}
-.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(162, 210, 255, 0.7); }
+    // Confetti Effect
+    if(typeof confetti === 'function') confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
 
-/* Mood Grid & Buttons */
-.mood-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-bottom: 30px; }
-.mood-btn {
-    background: rgba(255,255,255,0.7); border: 2px solid transparent; border-radius: 20px; padding: 18px 10px;
-    font-size: 16px; font-weight: 600; color: #457b9d; cursor: pointer; transition: 0.3s; 
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
-}
-.mood-btn span.emoji { font-size: 42px; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.mood-btn:hover { background: #fff; transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); } 
-.mood-btn:hover span.emoji { transform: scale(1.25); }
+    try {
+        await addDoc(collection(db, "mood_records"), record);
+        document.getElementById('student-note').value = "";
+        document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('active'));
+        currentSelectedMood = "";
+        
+        // อัปเดต UI ทันที
+        document.getElementById('student-stats-section').classList.remove('hidden');
+        updateStudentChart(); 
+        renderStudentHistory();
+    } catch (e) { console.error("Error saving:", e); }
+};
 
-/* Active Mood Colors */
-.mood-btn[data-color="gold"].active { border-color: #ffd6a5; color: #e76f51; }
-.mood-btn[data-color="green"].active { border-color: #caffbf; color: #2a9d8f; }
-.mood-btn[data-color="pink"].active { border-color: #ffadad; color: #d62828; }
-/* ... เพิ่มสีอื่นๆ ตามในไฟล์ HTML ได้เลย ... */
+// กราฟแบบ Interactive บอกระดับอารมณ์เมื่อชี้ (Tooltips)
+window.updateStudentChart = () => {
+    const ctx = document.getElementById('studentChart').getContext('2d');
+    const recentData = appData.slice(-10);
+    const labels = recentData.map((d, i) => `ครั้งที่ ${i+1}`);
+    const dataPoints = recentData.map(d => moodScores[d.mood] || 3);
 
-/* History Cards */
-.history-card { 
-    background: #fff; border-left: 6px solid var(--primary-blue); padding: 20px; 
-    border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 15px;
-}
+    if(studentChartInstance) studentChartInstance.destroy();
+    
+    studentChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { 
+            labels: labels, 
+            datasets: [{ 
+                label: 'ระดับพลังงานใจ', data: dataPoints, borderColor: '#457b9d', 
+                backgroundColor: 'rgba(162, 210, 255, 0.4)', borderWidth: 3, 
+                pointBackgroundColor: '#e63946', pointRadius: 6, fill: true, tension: 0.4 
+            }] 
+        },
+        options: { 
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const exactMood = recentData[context.dataIndex].mood;
+                            return ` อารมณ์: ${moodEmojiMap[exactMood]} ${exactMood} (ระดับ ${context.raw})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+};
 
-.hidden { display: none !important; }
-
-/* Responsive */
-@media (max-width: 600px) {
-    .container { padding: 25px; }
-    .mood-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-}
-    let text = `มีการบันทึกทั้งหมด <b>${total}</b> ครั้ง <br>`;
-    text += `อารมณ์ส่วนใหญ่ของนักศึกษาคือ <b>"${maxMood}"</b> (${maxCount} คน)`;
-    summaryBox.innerHTML = text;
-}
+// ดึงข้อมูล Real-time
+const q = query(collection(db, "mood_records"), orderBy("timestamp", "asc"));
+onSnapshot(q, (snapshot) => {
+    appData = snapshot.docs.map(doc => doc.data());
+    if (!document.getElementById('student-stats-section').classList.contains('hidden')) { 
+        updateStudentChart(); 
+        renderStudentHistory(); 
+    }
+});
